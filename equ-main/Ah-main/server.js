@@ -2267,20 +2267,31 @@ function getRoomMembers(roomId) {
 }
 
 function sameClanEntity(a, b) {
-  return Boolean(a && b && a.clanId && b.clanId && String(a.clanId) === String(b.clanId));
+  const aClan = String(a?.clanId || '').trim();
+  const bClan = String(b?.clanId || '').trim();
+  return Boolean(aClan && bClan && aClan === bClan);
 }
 
 function sameClanBuildingOwner(attacker, building) {
   if (!attacker || !building) return false;
-  if (attacker.clanId && building.ownerClanId && String(attacker.clanId) === String(building.ownerClanId)) return true;
+  const attackerClan = String(attacker.clanId || '').trim();
+  const buildingOwnerClan = String(building.ownerClanId || '').trim();
+  if (attackerClan && buildingOwnerClan && attackerClan === buildingOwnerClan) return true;
   const owner = building.ownerId ? players.get(building.ownerId) : null;
-  return Boolean(attacker.clanId && owner?.clanId && String(attacker.clanId) === String(owner.clanId));
+  const ownerClan = String(owner?.clanId || '').trim();
+  return Boolean(attackerClan && ownerClan && attackerClan === ownerClan);
 }
 
-function validateCombatState(attacker, target, { allowTrapHit = false, rangeLimit = 160, damage = 0, requireAlive = true, validWeapon = null } = {}) {
+function sameClanDamageBlocked(attacker, target, building = null) {
+  if (sameClanEntity(attacker, target)) return true;
+  if (building && sameClanBuildingOwner(attacker, building)) return true;
+  return false;
+}
+
+function validateCombatState(attacker, target, { allowTrapHit = false, rangeLimit = 160, damage = 0, requireAlive = true, validWeapon = null, building = null } = {}) {
   if (!attacker || !target) return false;
   if (requireAlive && ((attacker.hp ?? 0) <= 0 || (target.hp ?? 0) <= 0)) return false;
-  if (sameClanEntity(attacker, target) || (attacker.team && target.team && attacker.team === target.team)) return false;
+  if (sameClanDamageBlocked(attacker, target, building) || (attacker.team && target.team && attacker.team === target.team)) return false;
   if (!pvpAllowed()) return false;
   if (!allowTrapHit && target.trappedBy) return false;
   if (validWeapon && Number(attacker.weapon ?? 1) !== Number(validWeapon)) return false;
@@ -2354,9 +2365,13 @@ function emitClanRequests(clan) {
 
 function leaveClan(socket, notify = true) {
   const player = players.get(socket.id);
-  const clanId = player?.clanId || socket.data.clanId;
+  const clanId = player?.clanId || socket.data?.clanId || '';
   const clan = clanId ? clans.get(clanId) : null;
-  if (!clan) return;
+  if (!clan) {
+    if (player) { player.clanId = ''; player.clanTag = ''; }
+    if (socket.data) { socket.data.clanId = ''; socket.data.clanName = ''; socket.data.clanTag = ''; }
+    return;
+  }
   clan.members = (clan.members || []).filter(member => member.id !== socket.id);
   socket.leave(`clan:${clan.id}`);
   if (clan.ownerId === socket.id) {
@@ -2365,7 +2380,11 @@ function leaveClan(socket, notify = true) {
     if (!clan.ownerId) clans.delete(clan.id);
   }
   if (player) { player.clanId = ''; player.clanTag = ''; }
-  socket.data.clanId = '';
+  if (socket.data) {
+    socket.data.clanId = '';
+    socket.data.clanName = '';
+    socket.data.clanTag = '';
+  }
   saveAccountData();
   if (clans.has(clan.id)) emitClanUpdate(clan);
   if (notify) socket.emit('clan_left');
@@ -4293,7 +4312,7 @@ io.on('connection', (socket) => {
     const spike = buildings.get(String(data.bId || ''));
     if (!owner || !target || target.hp <= 0 || !spike || Number(spike.type) !== 3 || spike.ownerId !== socket.id || (spike.hp ?? 0) <= 0) return;
     if (Math.hypot((Number(target.x) || 0) - Number(spike.x), (Number(target.y) || 0) - Number(spike.y)) > 110) return;
-    if (!validateCombatState(owner, target, { allowTrapHit: false, rangeLimit: 110, damage: 1 })) return;
+    if (!validateCombatState(owner, target, { allowTrapHit: false, rangeLimit: 110, damage: 1, building: spike })) return;
     const tier = Math.max(0, Math.min(5, Number(spike.tier) || 0));
     const damage = Math.min(180, Math.round(60 * [1, 1.15, 1.3, 1.5, 1.8, 2.2][tier]));
     applyPlayerDamage(target, damage);
@@ -4786,7 +4805,7 @@ io.on('connection', (socket) => {
     const socketMember = { id: socket.id, name: player.name };
     if (!clan.members.some(member => member.id === socket.id)) clan.members.push(socketMember);
     player.clanId = clan.id; player.clanTag = clan.tag; socket.join(`clan:${clan.id}`);
-    socket.data.clanId = clan.id; socket.data.clanName = player.name;
+    socket.data.clanId = clan.id; socket.data.clanName = player.name; socket.data.clanTag = clan.tag;
     saveAccountData(); emitClanUpdate(clan); socket.emit('clan_joined', publicClan(clan));
   });
   socket.on('clan_request_join', ({ id, playerName } = {}) => {
@@ -4823,7 +4842,8 @@ io.on('connection', (socket) => {
         targetSocket.join(`clan:${clan.id}`);
         if (targetSocket?.data) {
           targetSocket.data.clanId = clan.id;
-          targetSocket.data.clanName = clan.name;
+          targetSocket.data.clanName = target.name || request.requesterName;
+          targetSocket.data.clanTag = clan.tag;
         }
         clan.members.push({ id: target.id, name: target.name || request.requesterName });
         saveAccountData();

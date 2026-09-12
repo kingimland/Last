@@ -3401,14 +3401,39 @@ const _isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) &&
 const _lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
   (navigator.deviceMemory && navigator.deviceMemory <= 4) || /Android\s+[1-7]|iPhone|iPad/i.test(navigator.userAgent);
 function _setUltraPerformanceMode() {
-  // Keep quality stable on low-end devices; do not force a visible quality collapse.
-  if (typeof _qualityLevel === 'number') _qualityLevel = Math.max(1, Math.min(2, _qualityLevel));
-  // Stop expensive post-processing/filter toggles from being re-enabled during entry boot.
+  // Keep quality stable on low-end devices; do not collapse visible output or gate users out.
+  if (typeof _qualityLevel === 'number') _qualityLevel = Math.max(1, Math.min(2, Math.max(1, Number(_qualityLevel) || 1)));
+  // Visible glow/shadow noise is the first expensive branch to de-prioritize on low power boot.
   if (typeof _shadowOk !== 'undefined') _shadowOk = true;
-  if (typeof _glowOk !== 'undefined') _glowOk = true;
+  if (typeof _glowOk !== 'undefined') _glowOk = false;
   // Keep screen-space name tag prepass and object pools light but deterministic.
   if (typeof _NT_OC_CACHE !== 'undefined') _NT_OC_CACHE.clear();
   if (typeof _NT_OBJ_POOL !== 'undefined') _NT_OBJ_POOL.length = Math.min(_NT_OBJ_POOL.length, 80);
+  // Friendly low-end safe geometry and smoothing limits: no large canvas scale churn.
+  if (typeof canvas !== 'undefined') {
+    try {
+      const c = canvas.getContext && canvas.getContext('2d');
+      if (c) {
+        c.imageSmoothingEnabled = true;
+        c.imageSmoothingQuality = 'low';
+      }
+    } catch (_) {}
+  }
+  return true;
+}
+
+function _applyUltraPerformanceGate() {
+  try {
+    if (typeof _setUltraPerformanceMode === 'function') _setUltraPerformanceMode();
+    if (typeof _qualityLevel === 'number') _qualityLevel = Math.max(1, Number(_qualityLevel) || 1);
+    if (typeof _shadowOk !== 'undefined') _shadowOk = true;
+    if (typeof _glowOk !== 'undefined') _glowOk = false;
+    if (typeof _fpsArr !== 'undefined') _fpsArr.length = Math.min(60, _fpsArr.length || 60);
+    if (typeof _NT_OC_CACHE !== 'undefined') _NT_OC_CACHE.clear();
+    if (typeof _SPRITE_CACHE !== 'undefined') _SPRITE_CACHE.clear();
+  } catch (e) {
+    // Never let the entry gate kill the game page; low-end fallback stays safe and visual stable.
+  }
   return true;
 }
 let ZOOM = _isMobile ? 0.50 : 0.62;
@@ -19160,12 +19185,14 @@ function _initEntryConsent(){
     _entryConsentAccepted = true;
     _consent.classList.add('hidden');
     _consent.style.display = 'none';
-    if (typeof _setUltraPerformanceMode === 'function') {
-      try {
-        _setUltraPerformanceMode();
-      } catch (e) {
-        // Never break the consent flow; always keep the game entry path alive.
-      }
+    try {
+      if (typeof _applyUltraPerformanceGate === 'function') _applyUltraPerformanceGate();
+      else if (typeof _setUltraPerformanceMode === 'function') _setUltraPerformanceMode();
+      if (typeof _qualityLevel === 'number') _qualityLevel = Math.max(1, Number(_qualityLevel) || 1);
+      if (typeof _shadowOk !== 'undefined') _shadowOk = true;
+      if (typeof _glowOk !== 'undefined') _glowOk = false;
+    } catch (e) {
+      // Never break the consent flow; always keep the game entry path alive.
     }
     if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
     if (navigator.vibrate) navigator.vibrate(20);
