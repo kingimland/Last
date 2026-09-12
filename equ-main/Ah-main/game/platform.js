@@ -33,6 +33,25 @@
   }
 
   function loadAdSense() {
+    const safeHost = window.location.hostname && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('forestbrawl.fun') ||
+      window.location.hostname.endsWith('forestbrawl.io')
+    );
+    if (!safeHost || !state.adsenseEnabled) return Promise.resolve(undefined);
+    try {
+      if (!window.adsbygoogle) {
+        const existing = document.querySelector('script[src^="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]');
+        if (!existing) {
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+          script.setAttribute('crossorigin', 'anonymous');
+          document.head.appendChild(script);
+        }
+      }
+    } catch (_) {}
     return Promise.resolve(undefined);
   }
 

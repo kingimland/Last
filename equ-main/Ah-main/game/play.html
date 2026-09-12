@@ -2,14 +2,6 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2KCMVMK"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-9KY2KCMVMK');
-</script>
 <meta name="google-site-verification" content="5HPW5h_jP5UFmpzrVQDBf94viuUajdObUgtm0JNoi5g">
 <meta name="google-site-verification" content="google36f814981b2cabaa">
 <script>
@@ -3566,10 +3558,7 @@ function _resourceSprite(type, biome) {
   let entry = _RESOURCE_SPRITES.get(name);
   if (!entry) entry = _loadSprite(name, 'resource');
   if (entry && entry.ready) return entry.image;
-  const fallbackRock = _RESOURCE_SPRITES.get(`asset/rock-${normBiome}.png`) || _RESOURCE_SPRITES.get('asset/rock-forest.png') || _RESOURCE_SPRITES.get('asset/rock.png');
-  const fallbackTree = _RESOURCE_SPRITES.get(`asset/tree-${normBiome}.png`) || _RESOURCE_SPRITES.get('asset/tree-forest.png');
-  if (type === 'stone' && fallbackRock && fallbackRock.ready) return fallbackRock.image;
-  if (type === 'wood' && fallbackTree && fallbackTree.ready) return fallbackTree.image;
+  if (entry && entry.failed) return null;
   return null;
 }
 function _weaponSprite(kind, tier) {
