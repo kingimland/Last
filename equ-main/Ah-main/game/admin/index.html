@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ForestBrawl — Owner & Admin Master Command</title>
+  <meta name="description" content="ForestBrawl multiplayer brawler yetkili yönetim ve canlı sunucu kontrol merkezi.">
+  <link rel="icon" type="image/png" href="../favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="theme-obsidian">
+  <div id="ambient-fx" class="ambient-fx">
+    <div class="glow-orb orb-emerald"></div>
+    <div class="glow-orb orb-amber"></div>
+    <div class="grid-mesh"></div>
+  </div>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- 1. LOGIN PORTAL                                                -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <main id="login-view" class="login-view">
+    <div class="login-wrapper">
+      <div class="login-hero">
+        <div class="hero-brand">
+          <div class="crest-icon">🌲<span>⚔️</span></div>
+          <div>
+            <div class="hero-tag">FORESTBRAWL // OWNER DECK</div>
+            <h1 class="hero-title">Oyunun kalbi <em>burada</em> atıyor.</h1>
+          </div>
+        </div>
+        <p class="hero-desc">
+          Canlı sunucu kuralları, gerçek zamanlı telemetri, oyuncu moderasyonu ve anlık dünya duyuruları için yüksek güvenlikli komuta paneli.
+        </p>
+
+        <div class="hero-features">
+          <div class="feat-pill">
+            <span class="pill-dot green"></span> Canlı Telemetri & Nabız
+          </div>
+          <div class="feat-pill">
+            <span class="pill-dot amber"></span> God Mode Oyuncu Yönetimi
+          </div>
+          <div class="feat-pill">
+            <span class="pill-dot cyan"></span> Canlı Önizlemeli Duyuru Stüdyosu
+          </div>
+        </div>
+      </div>
+
+      <div class="login-panel">
+        <div class="login-glass-card">
+          <div class="card-brand">
+            <div class="brand-crest">FB<span>+</span></div>
+            <div>
+              <h3>Giriş Yap</h3>
+              <p>Owner hesabınla sisteme bağlan</p>
+            </div>
+          </div>
+
+          <form id="login-form" autocomplete="on">
+            <div class="input-group">
+              <label for="username">KULLANICI ADI</label>
+              <div class="input-wrap">
+                <span class="input-icon">👤</span>
+                <input id="username" type="text" placeholder="Örn: owner" autocomplete="username" required autofocus>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="password">ŞİFRE</label>
+              <div class="input-wrap">
+                <span class="input-icon">🔑</span>
+                <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+                <button type="button" id="toggle-pwd-btn" class="toggle-pwd" title="Şifreyi göster/gizle">👁️</button>
+              </div>
+            </div>
+
+            <div id="login-error" class="login-error hidden"></div>
+
+            <button type="submit" id="login-submit-btn" class="btn-primary btn-block">
+              <span>Panele Güvenli Bağlan</span>
+              <span class="btn-arrow">→</span>
+            </button>
+          </form>
+
+          <div class="card-footer-note">
+            🔒 Oturumlar 12 saat geçerlidir. SHA-256 HMAC ile doğrulanır.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- 2. MAIN APPLICATION WORKSPACE                                  -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="app-view" class="app-view hidden">
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="side-brand">
+          <div class="brand-crest">FB<span>+</span></div>
+          <div class="brand-text">
+            <span class="brand-name">FORESTBRAWL</span>
+            <span class="brand-sub">OWNER COMMAND</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">KONTROL</div>
+        <button class="nav-btn active" data-tab="overview">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Genel Bakış & Nabız</span>
+          <span class="nav-badge" id="nav-badge-online">0</span>
+        </button>
+
+        <button class="nav-btn" data-tab="players">
+          <span class="nav-icon">⚔️</span>
+          <span class="nav-label">Canlı Oyuncular (God Mode)</span>
+        </button>
+
+        <button class="nav-btn" data-tab="broadcast">
+          <span class="nav-icon">📢</span>
+          <span class="nav-label">Duyuru Stüdyosu</span>
+        </button>
+
+        <div class="nav-section-title">DÜNYA & SİSTEM</div>
+        <button class="nav-btn" data-tab="world">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Dünya & Sunucu Ayarları</span>
+        </button>
+
+        <button class="nav-btn" data-tab="users">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Kayıtlı Hesaplar</span>
+        </button>
+
+        <button class="nav-btn" data-tab="cosmetics">
+          <span class="nav-icon">💎</span>
+          <span class="nav-label">Kozmetik & Sandıklar</span>
+        </button>
+
+        <button class="nav-btn" data-tab="audit">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Güvenlik & Audit Logları</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="owner-profile-card">
+          <div class="owner-avatar" id="owner-avatar">O</div>
+          <div class="owner-info">
+            <div class="owner-name" id="owner-display-name">Owner</div>
+            <div class="owner-role">Full God Permissions</div>
+          </div>
+        </div>
+        <button id="logout-btn" class="btn-logout" title="Güvenli Çıkış">
+          <span>Çıkış</span> 🚪
+        </button>
+      </div>
+    </aside>
+
+    <!-- WORKSPACE CANVAS -->
+    <div class="workspace">
+      <!-- TOP UTILITY BAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumbs">
+            <span class="bc-root">KOMUTA MERKEZİ</span>
+            <span class="bc-sep">/</span>
+            <span id="active-tab-title" class="bc-active">GENEL BAKIŞ</span>
+          </div>
+          <h2 id="view-heading" class="view-heading">Sunucu Nabzı & Canlı Telemetri</h2>
+        </div>
+
+        <div class="topbar-right">
+          <div class="hud-pill live-pill">
+            <span class="pulse-indicator"></span>
+            <span id="socket-status-label">SOCKET CANLI</span>
+          </div>
+
+          <div class="hud-pill uptime-pill" title="Sunucu Çalışma Süresi">
+            <span>⏱️</span>
+            <span id="server-uptime-label">0s 0d</span>
+          </div>
+
+          <div class="hud-pill ram-pill" title="RAM Kullanımı">
+            <span>💾</span>
+            <span id="server-ram-label">0 MB</span>
+          </div>
+
+          <button id="sfx-toggle-btn" class="btn-icon" title="Panel Seslerini Aç/Kapat">
+            <span id="sfx-icon">🔊</span>
+          </button>
+
+          <button id="refresh-btn" class="btn-icon btn-refresh" title="Verileri Anlık Yenile">
+            <span class="refresh-icon">↻</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 1: GENEL BAKIŞ (OVERVIEW)                              -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- HERO QUICK COMMAND BAR -->
+        <div class="command-hero-card">
+          <div class="hero-left">
+            <div class="hero-eyebrow">CANLI SUNUCU KONTROLÜ</div>
+            <h3 class="hero-headline">Dünyanın dengesini anında değiştir.</h3>
+            <p class="hero-subtext">Hızlı anahtarlarla oyun kurallarını canlı olarak yönetebilir veya anında tüm dünyaya seslenebilirsin.</p>
+          </div>
+          <div class="quick-action-bar">
+            <div class="quick-toggle-group">
+              <label class="switch-card" title="Yeni oyuncu girişlerini durdur">
+                <div class="switch-info">
+                  <span class="switch-title">Bakım Modu</span>
+                  <span class="switch-status" id="quick-maint-status">Kapalı</span>
+                </div>
+                <input type="checkbox" id="quick-maintenance-toggle">
+                <span class="switch-slider red-accent"></span>
+              </label>
+
+              <label class="switch-card" title="Oyuncular arası hasar">
+                <div class="switch-info">
+                  <span class="switch-title">PvP Savaşı</span>
+                  <span class="switch-status" id="quick-pvp-status">Açık</span>
+                </div>
+                <input type="checkbox" id="quick-pvp-toggle" checked>
+                <span class="switch-slider emerald-accent"></span>
+              </label>
+            </div>
+
+            <button id="hero-broadcast-trigger" class="btn-hero-action">
+              <span>Hızlı Duyuru Gönder</span> 📢
+            </button>
+          </div>
+        </div>
+
+        <!-- STATS TELEMETRY GRID -->
+        <div class="telemetry-grid">
+          <div class="tele-card tele-online">
+            <div class="tele-top">
+              <span class="tele-label">ÇEVRİMİÇİ OYUNCU</span>
+              <span class="tele-icon">👤</span>
+            </div>
+            <div class="tele-number" id="stat-online">0</div>
+            <div class="tele-foot">
+              <span class="foot-badge green">● Canlı Arena</span>
+              <span class="foot-detail" id="stat-online-detail">0 savaşta</span>
+            </div>
+          </div>
+
+          <div class="tele-card tele-mobs">
+            <div class="tele-top">
+              <span class="tele-label">YARATIK / CANAVAR</span>
+              <span class="tele-icon">🐺</span>
+            </div>
+            <div class="tele-number" id="stat-mobs">0</div>
+            <div class="tele-foot">
+              <span class="foot-badge amber">Aktif Popülasyon</span>
+            </div>
+          </div>
+
+          <div class="tele-card tele-buildings">
+            <div class="tele-top">
+              <span class="tele-label">İNŞA EDİLEN YAPILAR</span>
+              <span class="tele-icon">🏰</span>
+            </div>
+            <div class="tele-number" id="stat-buildings">0</div>
+            <div class="tele-foot">
+              <span class="foot-badge cyan">Duvar, Tuzak & Kale</span>
+            </div>
+          </div>
+
+          <div class="tele-card tele-users">
+            <div class="tele-top">
+              <span class="tele-label">KAYITLI HESAP</span>
+              <span class="tele-icon">📜</span>
+            </div>
+            <div class="tele-number" id="stat-users">0</div>
+            <div class="tele-foot">
+              <span class="foot-badge purple">SQLite WAL DB</span>
+            </div>
+          </div>
+
+          <div class="tele-card tele-social">
+            <div class="tele-top">
+              <span class="tele-label">KLAN & PARTİ</span>
+              <span class="tele-icon">🛡️</span>
+            </div>
+            <div class="tele-number" id="stat-clans">0</div>
+            <div class="tele-foot">
+              <span class="foot-badge blue" id="stat-parties-badge">0 aktif parti</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TWO COLUMN ROW: QUICK BROADCAST & RECENT AUDIT -->
+        <div class="dashboard-split-grid">
+          <!-- QUICK BROADCAST DISPATCHER -->
+          <div class="panel-card glass-panel">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">HIZLI YAYIN İSTASYONU</span>
+                <h4 class="card-title">Topluluğa Anında Seslen</h4>
+              </div>
+              <span class="badge-tag live-tag">CANLI YAYIN</span>
+            </div>
+
+            <div class="quick-broadcast-form">
+              <div class="category-pills">
+                <button type="button" class="cat-pill active" data-level="info">📢 Bilgi (Zümrüt)</button>
+                <button type="button" class="cat-pill" data-level="event">🔥 Etkinlik (Altın)</button>
+                <button type="button" class="cat-pill" data-level="warning">⚠️ Bakım / Uyarı (Alev)</button>
+                <button type="button" class="cat-pill" data-level="reward">🎁 Ödül Dağıtımı</button>
+              </div>
+
+              <div class="input-group">
+                <input type="text" id="quick-announce-title" class="custom-input" placeholder="Duyuru Başlığı (Örn: ÖZEL ETKİNLİK)" value="FORESTBRAWL DUYURUSU" maxlength="50">
+              </div>
+
+              <div class="input-group">
+                <textarea id="quick-announce-msg" class="custom-textarea" rows="3" maxlength="280" placeholder="Oyuncuların ekranında belirecek duyuru mesajı..."></textarea>
+                <div class="char-counter">
+                  <span id="quick-char-count">0</span>/280 karakter
+                </div>
+              </div>
+
+              <!-- IN-GAME LIVE SIMULATION PREVIEW -->
+              <div class="in-game-preview-box">
+                <div class="preview-label">🎮 OYUN İÇİ CANLI GÖRÜNÜM ÖNİZLEMESİ:</div>
+                <div id="live-preview-banner" class="preview-banner preview-level-info">
+                  <div class="preview-badge">
+                    <span id="preview-icon">📢</span>
+                    <span id="preview-tag">DUYURU</span>
+                  </div>
+                  <div class="preview-body">
+                    <div id="preview-title" class="preview-title">FORESTBRAWL DUYURUSU</div>
+                    <div id="preview-message" class="preview-message">Duyuru metni burada canlı görünecek...</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="quick-broadcast-foot">
+                <button type="button" id="quick-clear-announce-btn" class="btn-secondary" title="Yayındaki aktif duyuruyu temizler">
+                  🗑️ Yayını Temizle
+                </button>
+                <button type="button" id="quick-send-announce-btn" class="btn-primary">
+                  <span>Duyuruyu Yayınla</span> 🚀
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SYSTEM HEALTH & ACTIVE TICKER -->
+          <div class="panel-card glass-panel">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">SİSTEM SAĞLIĞI & AUDIT</span>
+                <h4 class="card-title">Canlı Sunucu Durumu</h4>
+              </div>
+              <span class="signal-dot green" title="Sistem Sağlıklı">●</span>
+            </div>
+
+            <div class="system-status-list">
+              <div class="status-row">
+                <span class="status-key">WebSocket / Socket.IO</span>
+                <span class="status-val green-text" id="sys-socket-stat">Aktif · 30Hz Tick</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">SQLite WAL Veritabanı</span>
+                <span class="status-val green-text" id="sys-db-stat">Hazır (Synchronous FULL)</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">Node.js Memory RSS</span>
+                <span class="status-val" id="sys-rss-stat">0 MB</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">V8 Heap Bellek</span>
+                <span class="status-val" id="sys-heap-stat">0 MB</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">Yasaklı (Banned) Hedefler</span>
+                <span class="status-val amber-text" id="sys-banned-stat">0 IP / Kullanıcı</span>
+              </div>
+            </div>
+
+            <div class="recent-audit-subhead">SON YÖNETİCİ HAREKETLERİ</div>
+            <div id="quick-audit-feed" class="quick-audit-feed">
+              <div class="empty-feed">Yükleniyor...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 2: CANLI OYUNCULAR & GOD MODE                          -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-players" class="tab-pane hidden">
+        <div class="toolbar-row">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="player-search" class="custom-input search-input" placeholder="Oyuncu adı, Socket ID veya Skin ara...">
+          </div>
+          <div class="toolbar-stats">
+            <span class="badge-tag green-tag" id="player-roster-count">0 Oyuncu Bağlı</span>
+          </div>
+        </div>
+
+        <div class="panel-card glass-panel table-panel">
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>OYUNCU & KİMLİK</th>
+                  <th>DURUM</th>
+                  <th>CAN (HP)</th>
+                  <th>SKOR</th>
+                  <th>ALTIN</th>
+                  <th>KILL</th>
+                  <th>KOORDİNAT</th>
+                  <th class="text-right">GOD MODE AKSİYONLARI</th>
+                </tr>
+              </thead>
+              <tbody id="players-table-body">
+                <tr><td colspan="8" class="text-center muted">Canlı oyuncular taranıyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 3: DUYURU STÜDYOSU (BROADCAST CENTER)                   -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-broadcast" class="tab-pane hidden">
+        <div class="broadcast-studio-grid">
+          <!-- STUDIO CONTROLS -->
+          <div class="panel-card glass-panel">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">YAYIN EDİTÖRÜ</span>
+                <h4 class="card-title">Küresel Oyun Bildirimi Yayınla</h4>
+              </div>
+            </div>
+
+            <div class="broadcast-presets-section">
+              <span class="preset-title">HIZLI ŞABLONLAR:</span>
+              <div class="preset-chips">
+                <button type="button" class="preset-chip" data-title="SUNUCU BAKIMI" data-level="warning" data-msg="Sunucu 5 dakika içinde güncellenecektir. Lütfen güvenli alana geçin!">
+                  ⚠️ Acil Bakım
+                </button>
+                <button type="button" class="preset-chip" data-title="2X ETKİNLİK BAŞLADI" data-level="event" data-msg="2X XP ve 2X Altın etkinliği başladı! Düşmanları avla ve zengin ol!">
+                  🔥 2X XP & Altın
+                </button>
+                <button type="button" class="preset-chip" data-title="KURUCU DUYURUSU" data-level="info" data-msg="Yeni güncelleme devrede! Haritadaki sandıkları ve yeni boss'u keşfedin.">
+                  📢 Güncelleme Müjdesi
+                </button>
+                <button type="button" class="preset-chip" data-title="ADİL OYUN BİLDİRİMİ" data-level="warning" data-msg="Kural ihlali ve hile yapan hesaplar kalıcı olarak yasaklanmaktadır.">
+                  🛡️ Adil Oyun Uyarısı
+                </button>
+                <button type="button" class="preset-chip" data-title="ÖZEL ÖDÜL ETKİNLİĞİ" data-level="reward" data-msg="Tüm aktif oyunculara altın yağmuru! Arenada hayatta kalan kazanır.">
+                  🎁 Altın Yağmuru
+                </button>
+              </div>
+            </div>
+
+            <form id="studio-broadcast-form">
+              <div class="form-row two-cols">
+                <div class="input-group">
+                  <label for="studio-category">DUYURU KATEGORİSİ</label>
+                  <select id="studio-category" class="custom-select">
+                    <option value="info">📢 Standart Bilgilendirme (Zümrüt Yeşili)</option>
+                    <option value="event">🔥 Özel Etkinlik / Turnuva (Mitolojik Altın)</option>
+                    <option value="warning">⚠️ Acil Durum / Bakım (Alev Kırmızısı)</option>
+                    <option value="reward">🎁 Ödül & Hediye (Pırlanta Sarısı)</option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label for="studio-sound">SES EFEKTİ</label>
+                  <select id="studio-sound" class="custom-select">
+                    <option value="bell">🔔 Klasik Gong (Tavsiye Edilen)</option>
+                    <option value="fanfare">🎺 Fanfar / Zafer Çanı</option>
+                    <option value="siren">🚨 Tehlike Sireni</option>
+                    <option value="none">🔇 Sessiz (Yalnızca Görsel)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="studio-title">BAŞLIK</label>
+                <input type="text" id="studio-title" class="custom-input" placeholder="Örn: BÜYÜK TURNUVA BAŞLADI" maxlength="60" value="FORESTBRAWL DUYURUSU">
+              </div>
+
+              <div class="input-group">
+                <label for="studio-message">DUYURU METNİ</label>
+                <textarea id="studio-message" class="custom-textarea" rows="4" maxlength="300" placeholder="Tüm oyunculara gösterilecek detaylı mesajı yazın..." required></textarea>
+                <div class="char-counter">
+                  <span id="studio-char-count">0</span>/300 karakter
+                </div>
+              </div>
+
+              <div class="studio-buttons">
+                <button type="button" id="studio-clear-btn" class="btn-danger-outline">
+                  Yayındaki Duyuruyu Kaldır
+                </button>
+                <button type="submit" class="btn-primary btn-large">
+                  <span>Duyuruyu Canlı Yayınla</span> 🚀
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- LIVE PREVIEW DISPLAY -->
+          <div class="panel-card glass-panel studio-preview-card">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">CANLI SİMÜLASYON</span>
+                <h4 class="card-title">Oyuncu Ekranında Nasıl Görünür?</h4>
+              </div>
+            </div>
+
+            <div class="mockup-game-viewport">
+              <div class="mockup-canvas-bg">
+                <div class="mockup-player-tag">⚔️ forestbrawl (Sen)</div>
+                <div class="mockup-tree">🌲</div>
+                <div class="mockup-rock">🪨</div>
+              </div>
+
+              <div id="studio-preview-banner" class="preview-banner preview-level-info">
+                <div class="preview-badge">
+                  <span id="sp-icon">📢</span>
+                  <span id="sp-tag">DUYURU</span>
+                </div>
+                <div class="preview-body">
+                  <div id="sp-title" class="preview-title">FORESTBRAWL DUYURUSU</div>
+                  <div id="sp-message" class="preview-message">Duyuru metnini yazdıkça burası anlık güncellenir.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mockup-killfeed-preview">
+              <div class="kf-title">KİLL FEED ÖNİZLEMESİ:</div>
+              <div class="mockup-kf-item" id="kf-preview-text">📢 FORESTBRAWL DUYURUSU</div>
+            </div>
+
+            <div class="studio-notes">
+              💡 <strong>Bilgi:</strong> Gönderilen duyuru tüm istemcilerde üst banner ve sol kill feed olarak görünür. Ses efekti açık olan oyuncuların hoparlöründen gong/çan çalacaktır. `undefined` veya veri kaybı asla yaşanmaz.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 4: DÜNYA & SUNUCU AYARLARI (WORLD RULES)               -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-world" class="tab-pane hidden">
+        <div class="panel-card glass-panel world-config-panel">
+          <div class="card-head">
+            <div>
+              <span class="card-eyebrow">DÜNYA PARAMETRELERİ</span>
+              <h4 class="card-title">Oyun Mekaniklerini Canlı Olarak Ayarla</h4>
+            </div>
+            <button id="save-world-config-btn" class="btn-primary">
+              <span>Değişiklikleri Canlı Uygula</span> 💾
+            </button>
+          </div>
+
+          <div class="world-config-grid">
+            <!-- TOGGLE: MAINTENANCE -->
+            <div class="config-item-box">
+              <div class="item-head">
+                <div class="item-icon red-bg">🛑</div>
+                <div>
+                  <div class="item-name">Sunucu Bakım Modu</div>
+                  <div class="item-desc">Açıldığında yeni oyuncu girişleri engellenir ve bakım bildirimi verilir.</div>
+                </div>
+              </div>
+              <label class="switch-control">
+                <input type="checkbox" id="cfg-maintenance">
+                <span class="switch-track red-accent"></span>
+              </label>
+            </div>
+
+            <!-- TOGGLE: PVP -->
+            <div class="config-item-box">
+              <div class="item-head">
+                <div class="item-icon emerald-bg">⚔️</div>
+                <div>
+                  <div class="item-name">PvP Oyuncu Savaşı</div>
+                  <div class="item-desc">Kapatıldığında oyuncuların birbirine verdiği tüm silah hasarı sıfırlanır.</div>
+                </div>
+              </div>
+              <label class="switch-control">
+                <input type="checkbox" id="cfg-pvp" checked>
+                <span class="switch-track emerald-accent"></span>
+              </label>
+            </div>
+
+            <!-- SLIDER: XP RATE -->
+            <div class="config-slider-box">
+              <div class="slider-head">
+                <div>
+                  <div class="item-name">XP Kazanım Çarpanı</div>
+                  <div class="item-desc">Yaratık ve kaynaklardan kazanılan tecrübe puanı katsayısı.</div>
+                </div>
+                <div class="slider-val-badge" id="cfg-xprate-val">1.0x</div>
+              </div>
+              <input type="range" id="cfg-xprate" class="custom-range" min="0.1" max="10" step="0.1" value="1.0">
+              <div class="range-markers">
+                <span>0.1x</span>
+                <span>1.0x (Normal)</span>
+                <span>2.0x (Etkinlik)</span>
+                <span>5.0x</span>
+                <span>10.0x (Çılgın)</span>
+              </div>
+            </div>
+
+            <!-- SLIDER: MOB MULTIPLIER -->
+            <div class="config-slider-box">
+              <div class="slider-head">
+                <div>
+                  <div class="item-name">Yaratık Popülasyon Yoğunluğu</div>
+                  <div class="item-desc">Haritada aynı anda gezen canavarların (kurt, ayı, akrep, örümcek) sıklığı.</div>
+                </div>
+                <div class="slider-val-badge" id="cfg-mobrate-val">1.0x</div>
+              </div>
+              <input type="range" id="cfg-mobrate" class="custom-range" min="0.1" max="5" step="0.1" value="1.0">
+              <div class="range-markers">
+                <span>0.1x (Seyrek)</span>
+                <span>1.0x (Dengeli)</span>
+                <span>2.5x (Zorlu)</span>
+                <span>5.0x (Kaos)</span>
+              </div>
+            </div>
+
+            <!-- SLIDER: RESOURCE RESPAWN -->
+            <div class="config-slider-box">
+              <div class="slider-head">
+                <div>
+                  <div class="item-name">Kaynak Yenilenme Çarpanı</div>
+                  <div class="item-desc">Kesilen ağaç, kırılan taş ve altın cevherlerinin geri doğma sürati.</div>
+                </div>
+                <div class="slider-val-badge" id="cfg-resrate-val">1.0x</div>
+              </div>
+              <input type="range" id="cfg-resrate" class="custom-range" min="0.1" max="5" step="0.1" value="1.0">
+              <div class="range-markers">
+                <span>0.1x (Kıtlık)</span>
+                <span>1.0x (Standart)</span>
+                <span>3.0x (Bol Kaynak)</span>
+                <span>5.0x</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 5: KAYITLI HESAPLAR & KULLANICI YÖNETİMİ               -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-users" class="tab-pane hidden">
+        <div class="toolbar-row">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="user-search" class="custom-input search-input" placeholder="Kullanıcı adı veya E-posta ara...">
+          </div>
+          <div class="toolbar-stats">
+            <span class="badge-tag purple-tag" id="user-total-count">0 Kayıtlı Hesap</span>
+          </div>
+        </div>
+
+        <div class="panel-card glass-panel table-panel">
+          <div class="table-responsive">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th>KULLANICI</th>
+                  <th>E-POSTA</th>
+                  <th>TECRÜBE (XP)</th>
+                  <th>ALTIN / COIN</th>
+                  <th>K/D ORANI</th>
+                  <th>MAÇ SAYISI</th>
+                  <th>EN İYİ SKOR</th>
+                  <th class="text-right">İŞLEMLER</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <tr><td colspan="8" class="text-center muted">Hesaplar yükleniyor...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 6: KOZMETİK & SANDIK GALERİSİ                          -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-cosmetics" class="tab-pane hidden">
+        <div class="toolbar-row">
+          <div class="toolbar-left">
+            <span class="badge-tag emerald-tag" id="cosmetic-catalog-count">0 Kozmetik Öğe</span>
+          </div>
+          <div class="category-filters" id="cosmetic-type-filters">
+            <button class="cat-filter-btn active" data-type="all">Tümü</button>
+            <button class="cat-filter-btn" data-type="skin">Kostümler</button>
+            <button class="cat-filter-btn" data-type="avatar">Avatarlar</button>
+            <button class="cat-filter-btn" data-type="frame">Çerçeveler</button>
+            <button class="cat-filter-btn" data-type="effect">Efektler</button>
+          </div>
+        </div>
+
+        <div class="cosmetics-grid" id="cosmetics-gallery-grid">
+          <div class="empty-feed">Kozmetikler taranıyor...</div>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────────── -->
+      <!-- TAB 7: GÜVENLİK & AUDIT LOGLARI                            -->
+      <!-- ────────────────────────────────────────────────────────── -->
+      <section id="tab-audit" class="tab-pane hidden">
+        <div class="audit-layout-grid">
+          <!-- AUDIT TIMELINE -->
+          <div class="panel-card glass-panel">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">HAREKET KAYITLARI</span>
+                <h4 class="card-title">Son Owner & Sistem Olayları</h4>
+              </div>
+            </div>
+            <div id="full-audit-timeline" class="full-audit-timeline">
+              <div class="empty-feed">Audit logları yükleniyor...</div>
+            </div>
+          </div>
+
+          <!-- BAN MANAGEMENT -->
+          <div class="panel-card glass-panel">
+            <div class="card-head">
+              <div>
+                <span class="card-eyebrow">YASAKLAMA MERKEZİ</span>
+                <h4 class="card-title">Aktif Ban Listesi</h4>
+              </div>
+            </div>
+
+            <div class="ban-adder-box">
+              <div class="input-wrap">
+                <input type="text" id="manual-ban-target" class="custom-input" placeholder="IP adresi veya Kullanıcı adı...">
+                <button type="button" id="manual-ban-btn" class="btn-danger">
+                  Yasakla 🔨
+                </button>
+              </div>
+            </div>
+
+            <div id="active-ban-list" class="active-ban-list">
+              <div class="empty-feed">Ban listesi boş.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- MODAL: GOD MODE OYUNCU İŞLEMİ                                  -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="godmode-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-badge">⚡ GOD MODE</span>
+          <h3 id="gm-player-name" class="modal-heading">Oyuncu İsmi</h3>
+          <span id="gm-player-id" class="modal-sub">Socket ID: ...</span>
+        </div>
+        <button type="button" class="modal-close-btn" data-close-modal="godmode">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="player-stat-ribbon">
+          <div class="psr-item"><small>CAN</small><strong id="gm-hp">250</strong></div>
+          <div class="psr-item"><small>SKOR</small><strong id="gm-score">0</strong></div>
+          <div class="psr-item"><small>ALTIN</small><strong id="gm-gold">0</strong></div>
+          <div class="psr-item"><small>KILL</small><strong id="gm-kills">0</strong></div>
+          <div class="psr-item"><small>KONUM</small><strong id="gm-pos">0, 0</strong></div>
+        </div>
+
+        <div class="gm-actions-grid">
+          <!-- CAN DOLDUR -->
+          <button class="gm-btn gm-heal" data-action="heal">
+            <span class="gm-icon">💚</span>
+            <div class="gm-info">
+              <b>Canını Doldur</b>
+              <small>HP'yi maksimuma tamamlar</small>
+            </div>
+          </button>
+
+          <!-- DONDUR / ÇÖZ -->
+          <button class="gm-btn gm-freeze" data-action="toggle_freeze">
+            <span class="gm-icon">❄️</span>
+            <div class="gm-info">
+              <b id="gm-freeze-label">Dondur / Sabitle</b>
+              <small>Hareket etmesini kilitler</small>
+            </div>
+          </button>
+
+          <!-- ALTIN BAS (+5000) -->
+          <button class="gm-btn gm-gold" data-action="give_gold" data-amount="5000">
+            <span class="gm-icon">🪙</span>
+            <div class="gm-info">
+              <b>+5,000 Altın Ver</b>
+              <small>Envanterine anında altın ekler</small>
+            </div>
+          </button>
+
+          <!-- XP BAS (+2500) -->
+          <button class="gm-btn gm-xp" data-action="give_xp" data-amount="2500">
+            <span class="gm-icon">⭐</span>
+            <div class="gm-info">
+              <b>+2,500 XP Ver</b>
+              <small>Rütbe puanı hediye eder</small>
+            </div>
+          </button>
+
+          <!-- MERKEZE IŞINLA -->
+          <button class="gm-btn gm-tp" data-action="teleport" data-x="0" data-y="0">
+            <span class="gm-icon">📍</span>
+            <div class="gm-info">
+              <b>Merkeze Işınla</b>
+              <small>(0, 0) koordinatına çeker</small>
+            </div>
+          </button>
+
+          <!-- HASAR VER (-50 HP) -->
+          <button class="gm-btn gm-dmg" data-action="damage" data-amount="50">
+            <span class="gm-icon">💥</span>
+            <div class="gm-info">
+              <b>50 Hasar Ver</b>
+              <small>Ceza hasarı uygular</small>
+            </div>
+          </button>
+
+          <!-- ANINDA ÖLDÜR -->
+          <button class="gm-btn gm-kill" data-action="kill">
+            <span class="gm-icon">💀</span>
+            <div class="gm-info">
+              <b>Yıldırım Çarp / Öldür</b>
+              <small>Doğrudan mezara yollar</small>
+            </div>
+          </button>
+
+          <!-- SUNUCUDAN AT -->
+          <button class="gm-btn gm-kick" data-action="kick">
+            <span class="gm-icon">🚪</span>
+            <div class="gm-info">
+              <b>Sunucudan At (Kick)</b>
+              <small>Bağlantısını koparır</small>
+            </div>
+          </button>
+
+          <!-- KALICI BANLA -->
+          <button class="gm-btn gm-ban full-width" data-action="ban">
+            <span class="gm-icon">🔨</span>
+            <div class="gm-info">
+              <b>Oyuncuyu Yasakla (Ban IP & İsim)</b>
+              <small>Sunucuya tekrar bağlanmasını engeller</small>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- MODAL: HESAP DÜZENLEME                                         -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="user-edit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-badge purple-badge">HESAP DÜZENLEYİCİ</span>
+          <h3 id="ue-username" class="modal-heading">Kullanıcı</h3>
+          <span id="ue-id" class="modal-sub">ID: #0</span>
+        </div>
+        <button type="button" class="modal-close-btn" data-close-modal="user-edit">✕</button>
+      </div>
+
+      <form id="user-edit-form" class="modal-body">
+        <input type="hidden" id="ue-user-id">
+        <input type="hidden" id="ue-user-name">
+
+        <div class="input-group">
+          <label for="ue-coins">ALTIN / COINS MİKTARI</label>
+          <input type="number" id="ue-coins" class="custom-input" min="0" max="100000000">
+        </div>
+
+        <div class="input-group">
+          <label for="ue-xp">TECRÜBE PUANI (XP)</label>
+          <input type="number" id="ue-xp" class="custom-input" min="0" max="100000000">
+        </div>
+
+        <div class="input-group">
+          <label for="ue-new-password">YENİ ŞİFRE (Opsiyonel - Değiştirmek istemiyorsanız boş bırakın)</label>
+          <input type="password" id="ue-new-password" class="custom-input" placeholder="En az 4 karakter">
+        </div>
+
+        <div class="modal-action-row">
+          <button type="button" id="ue-delete-btn" class="btn-danger">
+            Hesabı Tamamen Sil 🗑️
+          </button>
+          <button type="submit" class="btn-primary">
+            Değişiklikleri Kaydet 💾
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

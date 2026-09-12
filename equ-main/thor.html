@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thor .IO - Ultra Yıldırım Motoru</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a202c; /* Koyu gri zemin (toprak hissiyatı) */
+            overflow: hidden; /* Scroll'u engelle */
+            touch-action: none; /* Mobilde zoom/kaydırmayı engelle */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+        }
+        /* Arayüz Elemanları */
+        .ui-container {
+            position: absolute;
+            bottom: 20px;
+            display: flex;
+            gap: 15px;
+            pointer-events: none; /* Altındaki canvas tıklamalarını engellemesin */
+            z-index: 10;
+        }
+        button {
+            pointer-events: auto; /* Sadece butonlar tıklanabilsin */
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+            border: 2px solid #60a5fa;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+            cursor: pointer;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            transition: all 0.1s;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+        }
+        .warning {
+            position: absolute;
+            top: 20px;
+            color: #ffcc00;
+            font-family: sans-serif;
+            text-align: center;
+            text-shadow: 1px 1px 3px black;
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="warning" id="warningMsg">
+        Dikkat: "thor_ultimate_skin_180x180.png" aynı klasörde değilse siyah kutu görünür.
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-container">
+        <button id="btnStorm">Fırtına Kopar!</button>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Canvas'ı tam ekran yap
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- PNG YÜKLEME ---
+    const thorSkin = new Image();
+    let skinLoaded = false;
+    // Spck Editor'de aynı klasördeki dosyanın adı. Eğer farklı kaydettiyseniz burayı değiştirin.
+    thorSkin.src = 'thor_ultimate_skin_180x180.png'; 
+    
+    thorSkin.onload = () => {
+        skinLoaded = true;
+        document.getElementById('warningMsg').style.display = 'none'; // Yüklendiğinde uyarıyı gizle
+    };
+    thorSkin.onerror = () => {
+        console.error("Resim bulunamadı! 'thor_ultimate_skin_180x180.png' dosyasının index.html ile aynı klasörde olduğundan emin olun.");
+    };
+
+    // Karakterin özellikleri
+    const char = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 65, // Karakterin yarıçapı (Hitbox) - Yıldırımlar buradan çıkacak
+        angle: 0
+    };
+
+    // --- GÜVENLİK (KASMA ÖNLEYİCİ) LİMİTLER ---
+    const MAX_LIGHTNINGS = 25; // Aynı anda ekranda olabilecek maksimum şimşek (dallanmalar dahil)
+    const MAX_SPARKS = 200;    // Maksimum kıvılcım (particle)
+
+    let lightnings = [];
+    let sparks = [];
+    let scorchMarks = []; // Zemindeki yanık izleri
+
+    // --- YARDIMCI FONKSİYONLAR ---
+    // Optimizasyonlu dizi silme (O(1)) - Splice'tan daha hızlıdır. Sırayı bozar ama oyun parçacıklarında sıra önemsizdir.
+    function fastRemove(array, index) {
+        array[index] = array[array.length - 1];
+        array.pop();
+    }
+
+    // --- ULTRA DETAYLI ŞİMŞEK SINIFI ---
+    class Lightning {
+        constructor(startX, startY, endX, endY, branchLevel = 0) {
+            this.startX = startX;
+            this.startY = startY;
+            this.targetX = endX;
+            this.targetY = endY;
+            
+            // Şimşek yolu oluşturma (daha zikzaklı)
+            this.segments = this.createPath();
+            
+            this.alpha = 1;
+            // Çekirdek şimşekler kalın, dallar daha ince ve kısa ömürlü
+            this.branchLevel = branchLevel;
+            this.decay = this.branchLevel === 0 ? 0.015 : 0.03; 
+            
+            // Sadece ana şimşekler (0) dallanma yapabilir (Kasma önlemi)
+            if (this.branchLevel === 0 && lightnings.length < MAX_LIGHTNINGS) {
+                this.createBranches();
+            }
+        }
+
+        createPath() {
+            let segments = [];
+            let cx = this.startX;
+            let cy = this.startY;
+            let targetVector = { x: this.targetX - cx, y: this.targetY - cy };
+            let distance = Math.sqrt(targetVector.x ** 2 + targetVector.y ** 2);
+            
+            // Mesafeye göre zikzak sayısı
+            let numSteps = Math.max(5, Math.floor(distance / 15)); 
+            
+            segments.push({ x: cx, y: cy });
+
+            for (let i = 1; i <= numSteps; i++) {
+                let progress = i / numSteps;
+                let idealX = this.startX + targetVector.x * progress;
+                let idealY = this.startY + targetVector.y * progress;
+                
+                // Rastgele sapma (daha sert zikzaklar)
+                let variance = 25; 
+                if(i === numSteps) variance = 0; // Son adım tam hedefe gitsin
+
+                let nx = idealX + (Math.random() - 0.5) * variance;
+                let ny = idealY + (Math.random() - 0.5) * variance;
+                
+                segments.push({ x: nx, y: ny });
+            }
+            return segments;
+        }
+
+        createBranches() {
+            // Şimşek yolunun ortalarından 1 veya 2 küçük dal çıkar
+            let numBranches = Math.floor(Math.random() * 2) + 1;
+            for(let i=0; i<numBranches; i++) {
+                if (lightnings.length >= MAX_LIGHTNINGS) break;
+                
+                // Segmentlerin %30'u ile %70'i arasından bir yerden çık
+                let splitIndex = Math.floor(this.segments.length * (0.3 + Math.random() * 0.4));
+                if (!this.segments[splitIndex]) continue;
+
+                let spX = this.segments[splitIndex].x;
+                let spY = this.segments[splitIndex].y;
+                
+                // Dallar daha kısa bir mesafeye rastgele gider
+                let angle = Math.random() * Math.PI * 2;
+                let len = 40 + Math.random() * 50;
+                let ex = spX + Math.cos(angle) * len;
+                let ey = spY + Math.sin(angle) * len;
+                
+                lightnings.push(new Lightning(spX, spY, ex, ey, this.branchLevel + 1));
+            }
+        }
+
+        update() {
+            this.alpha -= this.decay;
+            return this.alpha > 0;
+        }
+
+        draw(ctx) {
+            if (this.alpha <= 0) return;
+            
+            // Dış parlama (Glow)
+            ctx.beginPath();
+            ctx.moveTo(this.segments[0].x, this.segments[0].y);
+            for (let i = 1; i < this.segments.length; i++) {
+                ctx.lineTo(this.segments[i].x, this.segments[i].y);
+            }
+            ctx.strokeStyle = `rgba(0, 195, 255, ${this.alpha * 0.8})`; // Mavi parlama
+            ctx.lineWidth = this.branchLevel === 0 ? 8 : 4;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "#00c3ff";
+            ctx.stroke();
+
+            // İç çekirdek (Core - Beyaz)
+            ctx.beginPath();
+            ctx.moveTo(this.segments[0].x, this.segments[0].y);
+            for (let i = 1; i < this.segments.length; i++) {
+                ctx.lineTo(this.segments[i].x, this.segments[i].y);
+            }
+            ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+            ctx.lineWidth = this.branchLevel === 0 ? 3 : 1.5;
+            ctx.shadowBlur = 0; // İç çekirdekte blur yok, keskin kalsın
+            ctx.stroke();
+        }
+    }
+
+    // --- KIVILCIM (SPARK) SINIFI ---
+    class Spark {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            let angle = Math.random() * Math.PI * 2;
+            let speed = 2 + Math.random() * 5;
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed;
+            this.life = 1.0;
+            this.decay = 0.03 + Math.random() * 0.05;
+            this.size = 2 + Math.random() * 2;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life -= this.decay;
+            return this.life > 0;
+        }
+        draw(ctx) {
+            ctx.fillStyle = `rgba(150, 220, 255, ${this.life})`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#00c3ff";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // Diğer çizimleri etkilemesin
+        }
+    }
+
+    // --- YANIK İZİ (SCORCH MARK) SINIFI ---
+    class ScorchMark {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.size = 15 + Math.random() * 15;
+            this.life = 1.0;
+        }
+        update() {
+            this.life -= 0.005; // Yavaşça silinir
+            return this.life > 0;
+        }
+        draw(ctx) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${this.life * 0.6})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // --- ŞİMŞEK ÇAKTIRMA FONKSİYONU ---
+    function spawnLightning(targetX, targetY) {
+        if (lightnings.length >= MAX_LIGHTNINGS) return;
+
+        // --- KRİTİK NOKTA: YILDIRIM KARAKTERİN DERİSİNDEN ÇIKSIN ---
+        // Karakterin merkezinden hedefe doğru olan açıyı bul
+        let angleToTarget = Math.atan2(targetY - char.y, targetX - char.x);
+        
+        // Karakterin yarıçapı kadar o açıda ileri git (Böylece tam kenardan başlar)
+        let startX = char.x + Math.cos(angleToTarget) * char.radius;
+        let startY = char.y + Math.sin(angleToTarget) * char.radius;
+
+        // Ana şimşeği oluştur
+        lightnings.push(new Lightning(startX, startY, targetX, targetY, 0));
+
+        // Hedefte yanık izi oluştur (Eğer çok yoksa)
+        if (scorchMarks.length < 15) {
+             scorchMarks.push(new ScorchMark(targetX, targetY));
+        }
+
+        // Hedefte kıvılcımlar patlat (Limit kontrolü)
+        let numSparks = 5 + Math.floor(Math.random() * 5);
+        for(let i=0; i<numSparks; i++) {
+            if (sparks.length >= MAX_SPARKS) break;
+            sparks.push(new Spark(targetX, targetY));
+        }
+    }
+
+    // --- ETKİLEŞİMLER ---
+    
+    // Ekrana tıklandığında (veya dokunulduğunda) o noktaya şimşek çak
+    canvas.addEventListener('pointerdown', (e) => {
+        spawnLightning(e.clientX, e.clientY);
+        
+        // Karakter tıklandığı yere baksın (Klasik io mekaniği)
+        char.angle = Math.atan2(e.clientY - char.y, e.clientX - char.x);
+    });
+    
+    // Fare hareket ettiğinde karakter oraya baksın
+    canvas.addEventListener('pointermove', (e) => {
+        char.angle = Math.atan2(e.clientY - char.y, e.clientX - char.x);
+    });
+
+    // Rastgele Şimşek Fırtınası Butonu
+    document.getElementById('btnStorm').addEventListener('click', (e) => {
+        e.stopPropagation(); // Butona tıklanınca canvas tıklamasını engelle
+        
+        // Etrafa ard arda rastgele 4 şimşek çaktır
+        let count = 0;
+        let stormInterval = setInterval(() => {
+            if (count >= 4) {
+                clearInterval(stormInterval);
+                return;
+            }
+            // Karakterin etrafında rastgele bir hedef belirle (100 ile 300px arası)
+            let rDist = 100 + Math.random() * 200;
+            let rAngle = Math.random() * Math.PI * 2;
+            let tx = char.x + Math.cos(rAngle) * rDist;
+            let ty = char.y + Math.sin(rAngle) * rDist;
+            
+            spawnLightning(tx, ty);
+            count++;
+        }, 100);
+    });
+
+
+    // --- OYUN DÖNGÜSÜ (GAME LOOP) ---
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Zemin rengi
+        ctx.fillStyle = '#1a202c';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Zemindeki Yanık İzlerini Çiz
+        for (let i = scorchMarks.length - 1; i >= 0; i--) {
+            if (!scorchMarks[i].update()) {
+                fastRemove(scorchMarks, i);
+            } else {
+                scorchMarks[i].draw(ctx);
+            }
+        }
+
+        // 2. Karakteri Çiz
+        char.x = canvas.width / 2; // Ortada tut (Kamera takip ediyormuş gibi)
+        char.y = canvas.height / 2;
+
+        ctx.save();
+        ctx.translate(char.x, char.y);
+        ctx.rotate(char.angle);
+        
+        if (skinLoaded) {
+            // PNG dosyasını merkeze oturt (boyutu 180x180 demiştik, yarısı 90)
+            ctx.drawImage(thorSkin, -90, -90, 180, 180);
+        } else {
+            // PNG yüklenene kadar (veya hata verirse) geçici bir hitbox dairesi çiz
+            ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+            ctx.beginPath();
+            ctx.arc(0, 0, char.radius, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "white";
+            ctx.fillText("PNG Bekleniyor...", -40, 0);
+        }
+        
+        ctx.restore();
+
+        // 3. Şimşekleri Çiz ve Güncelle
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (let i = lightnings.length - 1; i >= 0; i--) {
+            if (!lightnings[i].update()) {
+                fastRemove(lightnings, i);
+            } else {
+                lightnings[i].draw(ctx);
+            }
+        }
+
+        // 4. Kıvılcımları Çiz
+        for (let i = sparks.length - 1; i >= 0; i--) {
+            if (!sparks[i].update()) {
+                fastRemove(sparks, i);
+            } else {
+                sparks[i].draw(ctx);
+            }
+        }
+
+        // --- YENİ: OTOMATİK ŞİMŞEK SİSTEMİ ---
+        // Saniyede ortalama 2-3 kere (her frame'de %4 ihtimalle) etrafa şimşek çakar
+        if (Math.random() < 0.04) {
+            // Karakterden 90px ile 300px arası uzaklıkta rastgele bir hedef seç
+            let rDist = 90 + Math.random() * 210; 
+            let rAngle = Math.random() * Math.PI * 2;
+            let tx = char.x + Math.cos(rAngle) * rDist;
+            let ty = char.y + Math.sin(rAngle) * rDist;
+            
+            spawnLightning(tx, ty);
+        }
+    }
+
+    // Döngüyü başlat
+    animate();
+
+</script>
+</body>
+</html>
