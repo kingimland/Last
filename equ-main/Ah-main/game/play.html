@@ -3505,8 +3505,8 @@ function _loadSprite(name, category, priority = 'normal') {
 function _preloadStaticSprites() {
   // PERF: Load critical resources first with normal priority
   const criticalResources = [
-    'asset/tree-forest.png', 'asset/tree-snow.png', 'asset/tree-desert.png', 'asset/tree-swamp.png', 'asset/tree-darkforest.png',
-    'asset/rock-forest.png', 'asset/rock-snow.png', 'asset/rock-desert.png', 'asset/rock-swamp.png', 'asset/rock-darkforest.png',
+    'asset/tree-forest.png', 'asset/tree-snow.png', 'asset/tree-desert.png', 'asset/tree-swamp.png', 'asset/tree-darkforest.png', 'asset/tree-lava.png',
+    'asset/rock-forest.png', 'asset/rock-snow.png', 'asset/rock-desert.png', 'asset/rock-swamp.png', 'asset/rock-darkforest.png', 'asset/rock-lava.png',
     'asset/gold.png', 'asset/apple.png'
   ];
   for (const name of criticalResources) _loadSprite(name, 'resource', 'normal');
@@ -3548,7 +3548,9 @@ function _resourceSprite(type, biome) {
   const normBiome = biome === 'snow' || biome === 'winter' ? 'snow' :
     biome === 'desert' ? 'desert' :
     biome === 'swamp' ? 'swamp' :
-    biome === 'darkforest' || biome === 'lava' ? 'darkforest' : 'forest';
+    biome === 'darkforest' ? 'darkforest' :
+    biome === 'lava' ? 'lava' :
+    'forest';
   let name;
   if (type === 'wood') {
     name = `asset/tree-${normBiome}.png`;
@@ -3564,10 +3566,10 @@ function _resourceSprite(type, biome) {
   let entry = _RESOURCE_SPRITES.get(name);
   if (!entry) entry = _loadSprite(name, 'resource');
   if (entry && entry.ready) return entry.image;
-  const fallbackForestRock = _RESOURCE_SPRITES.get('asset/rock-forest.png') || _RESOURCE_SPRITES.get('asset/rock.png');
-  const fallbackForestTree = _RESOURCE_SPRITES.get('asset/tree-forest.png');
-  if (type === 'stone' && fallbackForestRock && fallbackForestRock.ready) return fallbackForestRock.image;
-  if (type === 'wood' && fallbackForestTree && fallbackForestTree.ready) return fallbackForestTree.image;
+  const fallbackRock = _RESOURCE_SPRITES.get(`asset/rock-${normBiome}.png`) || _RESOURCE_SPRITES.get('asset/rock-forest.png') || _RESOURCE_SPRITES.get('asset/rock.png');
+  const fallbackTree = _RESOURCE_SPRITES.get(`asset/tree-${normBiome}.png`) || _RESOURCE_SPRITES.get('asset/tree-forest.png');
+  if (type === 'stone' && fallbackRock && fallbackRock.ready) return fallbackRock.image;
+  if (type === 'wood' && fallbackTree && fallbackTree.ready) return fallbackTree.image;
   return null;
 }
 function _weaponSprite(kind, tier) {
